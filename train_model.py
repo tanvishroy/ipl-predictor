@@ -17,6 +17,20 @@ df = df.dropna(subset=[
     "First_Total", "Match_Winner"
 ])
 
+# Normalize old team names
+TEAM_RENAME_MAP = {
+    "Delhi Daredevils": "Delhi Capitals",
+    "Deccan Chargers": "Sunrisers Hyderabad",
+    "Rising Pune Supergiants": "Rising Pune Supergiant",
+    "Pune Warriors": "Pune Warriors India",
+    "Kings XI Punjab": "Punjab Kings",
+    "Royal Challengers Bangalore": "Royal Challengers Bangaluru",
+    "Gujarat Lions": "Gujarat Titans"
+}
+
+for col in ["Team1", "Team2", "Toss_Winner", "Match_Winner"]:
+    df[col] = df[col].replace(TEAM_RENAME_MAP)
+
 # Encode categorical features
 for col in ["Team1", "Team2", "Toss_Winner", "Venue", "Toss_Decision"]:
     df[col] = df[col].astype(str)
