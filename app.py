@@ -138,6 +138,9 @@ if st.button("Predict Match"):
     pp2, mid2, death2, total2 = predict_scores(input_df_2nd)
 
     winner = predict_winner(input_df_1st)
+    if winner not in [t1, t2]:
+        winner = t1 if total1 > total2 else t2
+
 
     st.subheader("📊 Prediction Results")
     st.write(f"**Toss Winner:** {toss_winner}")
@@ -159,3 +162,4 @@ if st.button("Predict Match"):
     st.markdown("---")
     st.subheader("🏆 Predicted Match Winner")
     st.success(f"**{winner}**")
+    print("Winner classes:", winner_encoder.classes_)
