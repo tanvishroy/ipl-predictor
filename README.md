@@ -1,128 +1,168 @@
-# 🏏 IPL Match Predictor
+import streamlit as st
+import pandas as pd
+import joblib
+import numpy as np
+import os
+import base64
 
-An AI-powered IPL prediction web app built using **Streamlit** and trained on **ball-by-ball IPL data (2008–2025)**. It predicts:
+# --- Streamlit Page Config ---
 
-- Powerplay, Middle, and Death Overs scores
-- Total scores for both teams
-- Toss winner (optional or predicted)
-- Final match winner
+st.set\_page\_config(page\_title="IPL Predictor", page\_icon="🏏", layout="centered")
 
----
+# --- Encode and Set Background Image ---
 
-## 🚀 Live App
+def set\_background(image\_path):
+with open(image\_path, "rb") as image\_file:
+encoded = base64.b64encode(image\_file.read()).decode()
+st.markdown(f""" <style>
+body {{
+background-image: url("data\:image/png;base64,{encoded}");
+background-size: cover;
+background-attachment: fixed;
+}}
+.stButton > button {{
+background-color: #f0ad4e;
+color: white;
+font-weight: bold;
+transition: 0.3s;
+border-radius: 8px;
+padding: 0.5em 1em;
+}}
+.stButton > button\:hover {{
+background-color: #ec971f;
+color: white;
+transform: scale(1.05);
+cursor: pointer;
+}} </style>
+""", unsafe\_allow\_html=True)
 
-👉 [https://ipl-predictor.streamlit.app](https://ipl-predictor.streamlit.app)  
-(*Once deployed via Streamlit Cloud*)
+set\_background("assets/background.png")
 
----
+# --- Load Models ---
 
-## 🎯 Features
+model\_powerplay = joblib.load("models/powerplay\_model.pkl")
+model\_middle = joblib.load("models/middle\_model.pkl")
+model\_death = joblib.load("models/death\_model.pkl")
+model\_total = joblib.load("models/total\_model.pkl")
+model\_winner = joblib.load("models/winner\_model.pkl")
+winner\_encoder = joblib.load("models/winner\_label\_encoder.pkl")
+team\_encoder = joblib.load("models/team\_encoder.pkl")
+venue\_encoder = joblib.load("models/venue\_encoder.pkl")
+toss\_encoder = joblib.load("models/toss\_encoder.pkl")
 
-- 📥 User inputs: Team1, Team2, Stadium, Toss winner (optional)
-- 🔮 Predictions using real ML models:
-  - Powerplay (0–6 overs)
-  - Middle Overs (7–15 overs)
-  - Death Overs (16–20 overs)
-  - Total Score (1st innings)
-  - Match Winner
-- 🎨 Stylish UI with:
-  - Background image
-  - Hover effects on buttons
-  - Score progress bars
-  - Optional team avatars/logo support
-- ⚡ Fast deployment with Streamlit Cloud
+# Normalize old team names
 
----
+TEAM\_RENAME\_MAP = {
+"Delhi Daredevils": "Delhi Capitals",
+"Deccan Chargers": "Sunrisers Hyderabad",
+"Rising Pune Supergiants": "Rising Pune Supergiant",
+"Pune Warriors": "Pune Warriors India",
+"Kings XI Punjab": "Punjab Kings",
+"Royal Challengers Bangalore": "Royal Challengers Bangaluru",
+"Gujarat Lions": "Gujarat Titans"
+}
 
-## 📂 Folder Structure
+# --- Input Vector Builder ---
 
-ipl-predictor/
-├── app.py # Streamlit frontend
-├── train_model.py # Model training pipeline
-├── requirements.txt # Python dependencies
-├── README.md
-│
-├── data/
-│ └── processed/
-│ └── ipl_model_data_with_recent_form.csv
-│
-├── models/ # Saved ML models
-│ ├── powerplay_model.pkl
-│ ├── middle_model.pkl
-│ ├── death_model.pkl
-│ ├── total_model.pkl
-│ ├── winner_model.pkl
-│ ├── winner_label_encoder.pkl
-│ ├── team_encoder.pkl
-│ ├── venue_encoder.pkl
-│ └── toss_encoder.pkl
-│
-└── assets/ # Optional images like logo or background
-├── logo.png
-└── background.jpg
+def get\_input\_vector(team1, team2, venue, toss\_winner, toss\_decision, team1\_avg, team2\_avg):
+return pd.DataFrame(\[{
+"Team1": team\_encoder.transform(\[team1])\[0],
+"Team2": team\_encoder.transform(\[team2])\[0],
+"Venue": venue\_encoder.transform(\[venue])\[0],
+"Toss\_Winner": team\_encoder.transform(\[toss\_winner])\[0],
+"Toss\_Decision": toss\_encoder.transform(\[toss\_decision])\[0],
+"Team1\_Recent\_Avg": team1\_avg,
+"Team2\_Recent\_Avg": team2\_avg
+}])
 
-yaml
-Copy
-Edit
+# --- Prediction Functions ---
 
----
+def predict\_scores(input\_df):
+pp = model\_powerplay.predict(input\_df)\[0]
+mid = model\_middle.predict(input\_df)\[0]
+death = model\_death.predict(input\_df)\[0]
+total = model\_total.predict(input\_df)\[0]
+return pp, mid, death, total
 
-## 🧠 Machine Learning
+def predict\_winner(input\_df):
+pred = model\_winner.predict(input\_df)\[0]
+return winner\_encoder.inverse\_transform(\[pred])\[0]
 
-Models trained with **Random Forest** using:
-- Features: `Team1`, `Team2`, `Venue`, `Toss_Winner`, `Toss_Decision`, `Recent_Form`
-- Targets:
-  - Phase scores: `Powerplay_Scores`, `Middle_Overs_Scores`, `Death_Overs_Scores`
-  - `First_Total`
-  - `Match_Winner` (classification)
+# --- App UI ---
 
----
+st.markdown("## 🏏 IPL Match Predictor", unsafe\_allow\_html=True)
+st.markdown("Enter match details to get predictions based on real IPL data.")
 
-## 📦 Installation
+team\_list = \[
+"Chennai Super Kings", "Mumbai Indians", "Royal Challengers Bangalore",
+"Delhi Capitals", "Kolkata Knight Riders", "Sunrisers Hyderabad",
+"Rajasthan Royals", "Punjab Kings", "Lucknow Super Giants", "Gujarat Titans"
+]
+venue\_list = \[
+"Wankhede Stadium, Mumbai",
+"M. A. Chidambaram Stadium, Chennai",
+"Arun Jaitley Stadium, Delhi",
+"M. Chinnaswamy Stadium, Bengaluru",
+"Eden Gardens, Kolkata",
+"Narendra Modi Stadium, Ahmedabad",
+"Sawai Mansingh Stadium, Jaipur",
+"Rajiv Gandhi International Stadium, Hyderabad",
+"Punjab Cricket Association IS Bindra Stadium, Mohali",
+"Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow",
+"Dr DY Patil Sports Academy, Mumbai",
+"Maharashtra Cricket Association Stadium, Pune",
+"Barsapara Cricket Stadium, Guwahati",
+"Himachal Pradesh Cricket Association Stadium, Dharamsala"
+]
 
-```bash
-git clone https://github.com/tanvishroy/ipl-predictor.git
-cd ipl-predictor
-pip install -r requirements.txt
-▶️ Run Locally
-bash
-Copy
-Edit
-streamlit run app.py
-Make sure the models are present in the /models directory and that background/logo images (if used) are correctly referenced.
+t1 = st.selectbox("Team 1", team\_list)
+t2 = st.selectbox("Team 2", \[t for t in team\_list if t != t1])
+venue = st.selectbox("Venue", venue\_list)
+toss\_option = st.selectbox("Toss Winner (optional)", \["Predict", t1, t2])
+toss\_decision = st.selectbox("Toss Decision", \["bat", "field"])
 
-🌐 Deploy on Streamlit Cloud
-Push code to GitHub
+# Dummy recent averages (you could calculate dynamically later)
 
-Go to https://streamlit.io/cloud
+team1\_avg = 160
+team2\_avg = 155
 
-Create a new app:
+if st.button("Predict Match"):
+toss\_winner = t1 if toss\_option == "Predict" else toss\_option
 
-Repo: tanvishroy/ipl-predictor
+```
+# Apply name normalization to selected teams
+t1 = TEAM_RENAME_MAP.get(t1, t1)
+t2 = TEAM_RENAME_MAP.get(t2, t2)
+toss_winner = TEAM_RENAME_MAP.get(toss_winner, toss_winner)
 
-Branch: main
+input_df_1st = get_input_vector(t1, t2, venue, toss_winner, toss_decision, team1_avg, team2_avg)
+pp1, mid1, death1, total1 = predict_scores(input_df_1st)
 
-File: app.py
+input_df_2nd = get_input_vector(t2, t1, venue, toss_winner, toss_decision, team2_avg, team1_avg)
+pp2, mid2, death2, total2 = predict_scores(input_df_2nd)
 
-Click Deploy ✅
+winner = predict_winner(input_df_1st)
+if winner not in [t1, t2]:
+    winner = t1 if total1 > total2 else t2
 
-🙋‍♂️ Author
-Tanvish Roy
-Made with 💙 for the love of cricket and ML.
-GitHub · LinkedIn
+st.subheader("📊 Prediction Results")
+st.write(f"**Toss Winner:** {toss_winner}")
 
-📄 License
-This project is licensed under the MIT License.
+col1, col2 = st.columns(2)
+with col1:
+    st.markdown(f"### {t1}")
+    st.write(f"Powerplay: {pp1:.1f} runs")
+    st.write(f"Middle Overs: {mid1:.1f} runs")
+    st.write(f"Death Overs: {death1:.1f} runs")
+    st.success(f"Total: {total1:.1f} runs")
+with col2:
+    st.markdown(f"### {t2}")
+    st.write(f"Powerplay: {pp2:.1f} runs")
+    st.write(f"Middle Overs: {mid2:.1f} runs")
+    st.write(f"Death Overs: {death2:.1f} runs")
+    st.success(f"Total: {total2:.1f} runs")
 
-python
-Copy
-Edit
-
----
-
-Let me know if you'd like:
-- A `LICENSE` file added
-- Badges (GitHub stars, Streamlit status, etc.)
-- A live screenshot or banner for the top of the README
-
-I'll help you polish it all for portfolio-ready quality!
+st.markdown("---")
+st.subheader("🏆 Predicted Match Winner")
+st.success(f"**{winner}**")
+```

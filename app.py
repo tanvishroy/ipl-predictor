@@ -8,17 +8,14 @@ import base64
 # --- Streamlit Page Config ---
 st.set_page_config(page_title="IPL Predictor", page_icon="🏏", layout="centered")
 
-# --- Encode Background Image ---
-def encode_bg(file_path):
-    with open(file_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode()
-
-# --- Inject Custom CSS ---
-def local_css():
+# --- Encode and Set Background Image (.webp version) ---
+def set_background(path):
+    with open(path, "rb") as f:
+        encoded = base64.b64encode(f.read()).decode()
     st.markdown(f"""
         <style>
         body {{
-            background-image: url("data:image/png;base64,{encode_bg('assets/background.png')}");
+            background-image: url("data:image/webp;base64,{encoded}");
             background-size: cover;
             background-attachment: fixed;
         }}
@@ -39,7 +36,7 @@ def local_css():
         </style>
     """, unsafe_allow_html=True)
 
-local_css()
+set_background("assets/background.webp")
 
 # --- Load Models ---
 model_powerplay = joblib.load("models/powerplay_model.pkl")
@@ -92,25 +89,24 @@ st.markdown("## 🏏 IPL Match Predictor", unsafe_allow_html=True)
 st.markdown("Enter match details to get predictions based on real IPL data.")
 
 team_list = [
-    "Chennai Super Kings", "Mumbai Indians", "Royal Challengers Bangalore",
+    "Royal Challengers Bangalore","Chennai Super Kings", "Mumbai Indians",
     "Delhi Capitals", "Kolkata Knight Riders", "Sunrisers Hyderabad",
     "Rajasthan Royals", "Punjab Kings", "Lucknow Super Giants", "Gujarat Titans"
 ]
 venue_list = [
-    "Wankhede Stadium, Mumbai",
-    "M. A. Chidambaram Stadium, Chennai",
     "Arun Jaitley Stadium, Delhi",
-    "M. Chinnaswamy Stadium, Bengaluru",
-    "Eden Gardens, Kolkata",
-    "Narendra Modi Stadium, Ahmedabad",
-    "Sawai Mansingh Stadium, Jaipur",
-    "Rajiv Gandhi International Stadium, Hyderabad",
-    "Punjab Cricket Association IS Bindra Stadium, Mohali",
-    "Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow",
-    "Dr DY Patil Sports Academy, Mumbai",
-    "Maharashtra Cricket Association Stadium, Pune",
     "Barsapara Cricket Stadium, Guwahati",
-    "Himachal Pradesh Cricket Association Stadium, Dharamsala"
+    "Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow",
+    "Dr. Y.S. Rajasekhara Reddy ACA-VDCA Cricket Stadium, Visakhapatnam",
+    "Eden Gardens, Kolkata",
+    "Himachal Pradesh Cricket Association Stadium, Dharamsala",
+    "M Chinnaswamy Stadium, Bengaluru",
+    "MA Chidambaram Stadium, Chepauk, Chennai",
+    "Maharaja Yadavindra Singh International Cricket Stadium, Mullanpur",
+    "Narendra Modi Stadium, Ahmedabad",
+    "Rajiv Gandhi International Stadium, Uppal, Hyderabad",
+    "Sawai Mansingh Stadium, Jaipur",
+    "Wankhede Stadium, Mumbai"
 ]
 
 t1 = st.selectbox("Team 1", team_list)
@@ -141,7 +137,6 @@ if st.button("Predict Match"):
     if winner not in [t1, t2]:
         winner = t1 if total1 > total2 else t2
 
-
     st.subheader("📊 Prediction Results")
     st.write(f"**Toss Winner:** {toss_winner}")
 
@@ -162,4 +157,3 @@ if st.button("Predict Match"):
     st.markdown("---")
     st.subheader("🏆 Predicted Match Winner")
     st.success(f"**{winner}**")
-    print("Winner classes:", winner_encoder.classes_)
